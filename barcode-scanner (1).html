@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קורא ברקודים - Baby Land</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        #scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #interactive {
+            width: 100%;
+            height: auto;
+        }
+
+        #interactive video {
+            width: 100%;
+            height: auto;
+        }
+
+        #interactive canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .drawingBuffer {
+            display: none !important;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .barcode-result {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .barcode-result h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .barcode-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .instructions ul {
+            padding-right: 20px;
+            color: #856404;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 קורא ברקודים</h1>
+        <p class="subtitle">Baby Land Event Scanner</p>
+
+        <div class="instructions">
+            <h3>הוראות שימוש:</h3>
+            <ul>
+                <li>לחץ על "התחל סריקה" להפעלת המצלמה</li>
+                <li>כוון את הברקוד למרכז המסך</li>
+                <li>הברקוד יזוהה אוטומטית ויישלח לאתר Baby Land</li>
+            </ul>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startScanner()">התחל סריקה</button>
+            <button id="stopBtn" onclick="stopScanner()" disabled>עצור סריקה</button>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 20px; color: #666;">
+            <strong>או</strong>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #333; margin-bottom: 10px; text-align: center;">הזנה ידנית</h3>
+            <div style="display: flex; gap: 10px;">
+                <input 
+                    type="text" 
+                    id="manual-input" 
+                    placeholder="הזן ברקוד ידנית"
+                    style="flex: 1; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; text-align: center; font-family: 'Courier New', monospace;"
+                    onkeypress="if(event.key === 'Enter') submitManualBarcode()"
+                />
+                <button onclick="submitManualBarcode()" style="white-space: nowrap;">שלח</button>
+            </div>
+        </div>
+
+        <div id="status" class="status info">
+            לחץ על "התחל סריקה" או הזן ברקוד ידנית
+        </div>
+
+        <div id="scanner-container" class="hidden">
+            <div id="interactive" class="viewport"></div>
+        </div>
+
+        <div id="result" class="barcode-result hidden">
+            <h3>ברקוד שזוהה:</h3>
+            <div id="barcode-value" class="barcode-value"></div>
+        </div>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>שולח לאתר Baby Land...</p>
+        </div>
+    </div>
+
+    <script>
+        let scannerStarted = false;
+        let lastDetected = null;
+
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        async function checkCameraPermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (err) {
+                console.error('Camera permission error:', err);
+                return false;
+            }
+        }
+
+        async function startScanner() {
+            try {
+                // Check if running on HTTPS or localhost
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                    updateStatus('⚠️ נדרש HTTPS לשימוש במצלמה. העלה את הקובץ לשרת HTTPS או השתמש באפליקציה מקומית', 'error');
+                    alert('השימוש במצלמה דורש HTTPS.\n\nאפשרויות:\n1. העלה את הקובץ לשרת HTTPS (כמו GitHub Pages)\n2. השתמש בהקלדה ידנית של הברקוד');
+                    return;
+                }
+
+                const scannerContainer = document.getElementById('scanner-container');
+                scannerContainer.classList.remove('hidden');
+                
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                updateStatus('בודק הרשאות מצלמה...', 'info');
+
+                // Check camera permission first
+                const hasPermission = await checkCameraPermission();
+                if (!hasPermission) {
+                    updateStatus('נדרשת הרשאה לשימוש במצלמה. אנא אפשר גישה למצלמה בהגדרות הדפדפן.', 'error');
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    scannerContainer.classList.add('hidden');
+                    return;
+                }
+
+                updateStatus('מאתחל מצלמה...', 'info');
+
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: document.querySelector('#interactive'),
+                        constraints: {
+                            width: { min: 640, ideal: 1280, max: 1920 },
+                            height: { min: 480, ideal: 720, max: 1080 },
+                            facingMode: "environment",
+                            aspectRatio: { min: 1, max: 2 }
+                        },
+                    },
+                    decoder: {
+                        readers: [
+                            "code_128_reader",
+                            "ean_reader",
+                            "ean_8_reader",
+                            "code_39_reader",
+                            "code_39_vin_reader",
+                            "codabar_reader",
+                            "upc_reader",
+                            "upc_e_reader",
+                            "i2of5_reader"
+                        ],
+                        debug: {
+                            drawBoundingBox: true,
+                            showFrequency: true,
+                            drawScanline: true,
+                            showPattern: true
+                        }
+                    },
+                    locate: true,
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    numOfWorkers: navigator.hardwareConcurrency || 4,
+                    frequency: 10
+                }, function(err) {
+                    if (err) {
+                        console.error('Quagga init error:', err);
+                        let errorMessage = 'שגיאה בהפעלת המצלמה';
+                        
+                        if (err.name === 'NotAllowedError') {
+                            errorMessage = 'הגישה למצלמה נדחתה. אנא אפשר גישה למצלמה.';
+                        } else if (err.name === 'NotFoundError') {
+                            errorMessage = 'לא נמצאה מצלמה במכשיר.';
+                        } else if (err.name === 'NotReadableError') {
+                            errorMessage = 'המצלמה בשימוש על ידי אפליקציה אחרת.';
+                        }
+                        
+                        updateStatus(errorMessage, 'error');
+                        document.getElementById('startBtn').disabled = false;
+                        document.getElementById('stopBtn').disabled = true;
+                        scannerContainer.classList.add('hidden');
+                        return;
+                    }
+                    console.log("Quagga initialization finished. Ready to start");
+                    Quagga.start();
+                    scannerStarted = true;
+                    updateStatus('🎯 מחפש ברקוד... כוון את הברקוד למצלמה', 'info');
+                });
+
+                Quagga.onDetected(onBarcodeDetected);
+                
+            } catch (error) {
+                console.error('Start scanner error:', error);
+                updateStatus('שגיאה: ' + error.message, 'error');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function stopScanner() {
+            if (scannerStarted) {
+                Quagga.stop();
+                scannerStarted = false;
+            }
+            
+            document.getElementById('scanner-container').classList.add('hidden');
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            updateStatus('הסריקה הופסקה', 'info');
+        }
+
+        async function onBarcodeDetected(result) {
+            const code = result.codeResult.code;
+            
+            // Prevent duplicate detections
+            if (lastDetected === code) {
+                return;
+            }
+            
+            // Only accept high-quality scans
+            if (result.codeResult.decodedCodes.length < 5) {
+                return;
+            }
+            
+            lastDetected = code;
+            
+            console.log("Barcode detected:", code);
+            
+            // Stop scanner
+            stopScanner();
+            
+            // Show detected barcode
+            document.getElementById('barcode-value').textContent = code;
+            document.getElementById('result').classList.remove('hidden');
+            
+            updateStatus('✅ ברקוד זוהה בהצלחה!', 'success');
+            
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            
+            // Send to Baby Land website
+            await sendToBabyLand(code);
+            
+            // Reset after 3 seconds
+            setTimeout(() => {
+                lastDetected = null;
+            }, 3000);
+        }
+
+        async function sendToBabyLand(barcode) {
+            try {
+                // Copy to clipboard first
+                try {
+                    await navigator.clipboard.writeText(barcode);
+                    updateStatus('✅ הברקוד הועתק ללוח! פותח את האתר...', 'success');
+                } catch (e) {
+                    console.log('Clipboard error:', e);
+                }
+                
+                // Wait a moment
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                // Open the Baby Land page
+                const babyLandUrl = 'https://event.baby-land.co.il/barcode/';
+                const babyLandWindow = window.open(babyLandUrl, '_blank');
+                
+                if (babyLandWindow) {
+                    updateStatus('🎉 הברקוד הועתק! הדבק אותו באתר Baby Land (Ctrl+V)', 'success');
+                } else {
+                    // Popup blocked
+                    updateStatus('⚠️ חסימת חלונות - לחץ כאן לפתיחת האתר: ' + babyLandUrl, 'info');
+                    
+                    // Create a clickable link
+                    const statusEl = document.getElementById('status');
+                    statusEl.innerHTML = `⚠️ חסימת חלונות - <a href="${babyLandUrl}" target="_blank" style="color: #1976d2; text-decoration: underline;">לחץ כאן לפתיחת האתר</a>`;
+                }
+                
+                document.getElementById('loading').classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('הברקוד: ' + barcode + ' (העתק ידנית)', 'error');
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function submitManualBarcode() {
+            const input = document.getElementById('manual-input');
+            const barcode = input.value.trim();
+            
+            if (!barcode) {
+                alert('אנא הזן ברקוד');
+                return;
+            }
+            
+            // Show detected barcode
+            document.getElementById('barcode-value').textContent = barcode;
+            document.getElementById('result').classList.remove('hidden');
+            
+            updateStatus('✅ ברקוד הוזן ידנית!', 'success');
+            
+            // Show loading
+            document.getElementById('loading').classList.remove('hidden');
+            
+            // Send to Baby Land website
+            sendToBabyLand(barcode);
+            
+            // Clear input
+            input.value = '';
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (scannerStarted) {
+                Quagga.stop();
+            }
+        });
+    </script>
+</body>
+</html>
