@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="קורא ברקודים לאתר Baby Land">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Baby Land Scanner">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>קורא ברקודים - Baby Land</title>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .scanner-mode {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header .status {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        #scanner-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #reader {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #reader video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        #reader__scan_region {
+            border-radius: 15px;
+        }
+
+        #reader__dashboard_section {
+            display: none !important;
+        }
+
+        #reader__camera_selection {
+            display: none !important;
+        }
+
+        .controls {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        button:disabled {
+            background: #ccc;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .website-mode {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            background: white;
+        }
+
+        .website-mode.active {
+            display: flex;
+        }
+
+        .website-header {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .website-header .info {
+            flex: 1;
+            text-align: center;
+        }
+
+        .website-header .barcode-display {
+            font-size: 18px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            margin-top: 5px;
+        }
+
+        .website-header button {
+            background: #e74c3c;
+            color: white;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        #baby-land-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .manual-input {
+            background: white;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .manual-input h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .manual-input input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+
+        .manual-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .success-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #2ecc71;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10000;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: fadeInOut 2s ease;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            20%, 80% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Scanner Mode -->
+    <div class="scanner-mode" id="scannerMode">
+        <div class="header">
+            <h1>🔍 Baby Land Scanner</h1>
+            <div class="status" id="scannerStatus">לחץ "התחל סריקה" להתחלה</div>
+        </div>
+
+        <div id="scanner-container" style="display: none;">
+            <div id="reader"></div>
+        </div>
+
+        <div class="manual-input">
+            <h3>או הזן ברקוד ידנית:</h3>
+            <input 
+                type="text" 
+                id="manual-input" 
+                placeholder="הזן ברקוד..."
+                onkeypress="if(event.key === 'Enter') submitManualBarcode()"
+            />
+            <button onclick="submitManualBarcode()" style="width: 100%;">שלח ברקוד</button>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startScanner()">📷 התחל סריקה</button>
+            <button id="stopBtn" onclick="stopScanner()" disabled>⏹️ עצור</button>
+        </div>
+    </div>
+
+    <!-- Website Mode -->
+    <div class="website-mode" id="websiteMode">
+        <div class="website-header">
+            <button onclick="backToScanner()">🔙 חזור לסריקה</button>
+            <div class="info">
+                <div>ברקוד נשלח:</div>
+                <div class="barcode-display" id="currentBarcode"></div>
+            </div>
+            <div style="width: 100px;"></div>
+        </div>
+        <iframe id="baby-land-frame" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups"></iframe>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div class="loading-text" id="loadingText">טוען...</div>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    <div class="success-message" id="successMessage">
+        ✅ ברקוד הועתק ללוח!
+    </div>
+
+    <script>
+        let html5QrcodeScanner = null;
+        let lastDetected = null;
+        let lastDetectedTime = 0;
+        let currentBarcodeValue = null;
+
+        function updateScannerStatus(message) {
+            document.getElementById('scannerStatus').textContent = message;
+        }
+
+        function showLoading(text) {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        function showSuccess() {
+            const msg = document.getElementById('successMessage');
+            msg.classList.add('show');
+            setTimeout(() => {
+                msg.classList.remove('show');
+            }, 2000);
+        }
+
+        async function startScanner() {
+            try {
+                document.getElementById('scanner-container').style.display = 'flex';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                updateScannerStatus('מאתחל מצלמה...');
+
+                html5QrcodeScanner = new Html5Qrcode("reader");
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 150 },
+                    aspectRatio: 1.777778,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODABAR,
+                        Html5QrcodeSupportedFormats.ITF
+                    ]
+                };
+
+                await html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+
+                updateScannerStatus('🎯 מחפש ברקוד... כוון למצלמה');
+                
+            } catch (error) {
+                console.error('Start scanner error:', error);
+                updateScannerStatus('❌ שגיאה בהפעלת המצלמה');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('scanner-container').style.display = 'none';
+            }
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            const now = Date.now();
+            
+            if (lastDetected === decodedText && (now - lastDetectedTime) < 3000) {
+                return;
+            }
+            
+            lastDetected = decodedText;
+            lastDetectedTime = now;
+            
+            console.log("Barcode detected:", decodedText);
+            
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+            
+            stopScanner();
+            processBarcode(decodedText);
+        }
+
+        function onScanFailure(error) {
+            // Silent
+        }
+
+        async function stopScanner() {
+            try {
+                if (html5QrcodeScanner) {
+                    await html5QrcodeScanner.stop();
+                    html5QrcodeScanner.clear();
+                    html5QrcodeScanner = null;
+                }
+                
+                document.getElementById('scanner-container').style.display = 'none';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                
+            } catch (error) {
+                console.error('Stop scanner error:', error);
+                html5QrcodeScanner = null;
+                document.getElementById('scanner-container').style.display = 'none';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function submitManualBarcode() {
+            const input = document.getElementById('manual-input');
+            const barcode = input.value.trim();
+            
+            if (!barcode) {
+                alert('אנא הזן ברקוד');
+                return;
+            }
+            
+            if (navigator.vibrate) {
+                navigator.vibrate(200);
+            }
+            
+            input.value = '';
+            processBarcode(barcode);
+        }
+
+        async function processBarcode(barcode) {
+            currentBarcodeValue = barcode;
+            
+            showLoading('מעתיק ברקוד...');
+            
+            // Copy to clipboard
+            try {
+                await navigator.clipboard.writeText(barcode);
+                console.log('Barcode copied to clipboard');
+            } catch (error) {
+                console.error('Clipboard error:', error);
+            }
+            
+            showSuccess();
+            
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            showLoading('פותח את אתר Baby Land...');
+            
+            // Switch to website mode
+            document.getElementById('scannerMode').style.display = 'none';
+            document.getElementById('websiteMode').classList.add('active');
+            document.getElementById('currentBarcode').textContent = barcode;
+            
+            // Load the Baby Land website
+            const iframe = document.getElementById('baby-land-frame');
+            iframe.src = 'https://event.baby-land.co.il/barcode/';
+            
+            hideLoading();
+            
+            // Show instructions
+            setTimeout(() => {
+                alert('הברקוד הועתק ללוח!\n\n' + 
+                      'כעת:\n' +
+                      '1. לחץ לחיצה ארוכה על שדה הקלט באתר\n' +
+                      '2. בחר "הדבק"\n' +
+                      '3. לחץ Enter\n\n' +
+                      'הברקוד שלך: ' + barcode);
+            }, 1500);
+        }
+
+        function backToScanner() {
+            document.getElementById('websiteMode').classList.remove('active');
+            document.getElementById('scannerMode').style.display = 'flex';
+            document.getElementById('baby-land-frame').src = 'about:blank';
+            updateScannerStatus('מוכן לברקוד הבא');
+            
+            // Auto-start scanner
+            setTimeout(() => {
+                startScanner();
+            }, 500);
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop();
+            }
+        });
+    </script>
+</body>
+</html>
